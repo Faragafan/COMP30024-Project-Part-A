@@ -133,8 +133,11 @@ def search(
             if nbr is not None and nbr in current_lily:
                 move_action = MoveAction(red, [d])
                 new_lily = current_lily.copy()
-                new_lily.remove(nbr)
-                # set new state
+                
+                # Remove the lily pad the red frog is jumping from
+                if red in new_lily:
+                    new_lily.remove(red)
+
                 new_state = (nbr, frozenset(new_lily))
                 moves.append((move_action, new_state))
         # jump move
@@ -158,21 +161,31 @@ def search(
 
     counter = itertools.count()
 
+    def reconstruct_board(red: Coord, lily_set: frozenset[Coord]) -> dict[Coord, CellState]:
+        updated_board = {}
+        updated_board[red] = CellState.RED
+        for blue in blue_set:
+            updated_board[blue] = CellState.BLUE
+        for lily in lily_set:
+            if lily not in updated_board:  # Don't overwrite RED or BLUE
+                updated_board[lily] = CellState.LILY_PAD
+        return updated_board
+
     # A* search algorithm
     open_set = []
     # Each heap element: (f, count, g, state, actions)
     heapq.heappush(open_set, (heuristic(initial_state), next(counter), 0, initial_state, []))
     visited_states = set()
-    print(render_board(board, ansi=True))
     while open_set:
         f, _, g, state, actions = heapq.heappop(open_set)
         if state in visited_states:
             continue
         visited_states.add(state)
         red, _ = state
-        #check for goal state
+        # Goal check
         if red.r == 7:
             return actions
+
         # generate all possible moves from the current state
         for move_action, new_state in generate_moves(state):
             new_actions = actions + [move_action]
@@ -180,7 +193,9 @@ def search(
             new_f = new_g + heuristic(new_state)
             if new_state not in visited_states:
                 heapq.heappush(open_set, (new_f, next(counter), new_g, new_state, new_actions))
-    
+
+
+
     return None  # no solution found
 
     # Here we're returning "hardcoded" actions as an example of the expected
